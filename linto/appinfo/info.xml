@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	  xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	<id>linto</id>
+	<name>LinTO</name>
+	<summary>Audio transcription by LinTO</summary>
+	<description>Integrate LinTO into nextcloud</description>
+	<version>1.0.0</version>
+	<licence>AGPL-3.0-or-later</licence>
+	<author mail="tjiho@ppsfleet.navy" homepage="">Tom Darboux</author>
+	<namespace>LinTO</namespace>
+	<category>ai</category>
+	<category>tools</category>
+	<bugs>https://github.com/tjiho/LinTO-Nextcloud</bugs>
+	<dependencies>
+		<nextcloud min-version="31" max-version="34"/>
+	</dependencies>
+	<!-- <navigations>
+		<navigation>
+			<id>linto</id>
+			<name>Lin T O</name>
+			<route>linto.page.index</route>
+			<icon>app.svg</icon>
+			<type>link</type>
+		</navigation>
+	</navigations> -->
+	<settings>
+        <admin>OCA\LinTO\Settings\LinTOAdmin</admin>
+        <admin-section>OCA\LinTO\Sections\LinTOAdmin</admin-section>
+    </settings>
+</info>

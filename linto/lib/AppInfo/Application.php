@@ -1,0 +1,42 @@
+<?php
+
+declare(strict_types=1);
+
+namespace OCA\LinTO\AppInfo;
+
+use OCP\AppFramework\App;
+use OCP\AppFramework\Bootstrap\IBootContext;
+use OCP\AppFramework\Bootstrap\IBootstrap;
+use OCP\AppFramework\Bootstrap\IRegistrationContext;
+use OCP\Util;
+
+class Application extends App implements IBootstrap {
+	public const APP_ID = 'linto';
+
+	/** @psalm-suppress PossiblyUnusedMethod */
+	public function __construct() {
+		parent::__construct(self::APP_ID);
+	}
+
+	public function register(IRegistrationContext $context): void {
+	    // $context->registerClass(\OCA\LinTO\Sections\LinTOAdmin::class, [\OCP\Settings\IIconSection::class]);
+     //    $context->registerTaggedService(
+     //        \OCA\LinTO\Sections\LinTOAdmin::class,
+     //        'settings.section',
+     //        ['id' => 'linto']
+     //    );
+
+     //    // 2. Settings form
+     //    $context->registerClass(\OCA\LinTO\Settings\LinTOAdmin::class, [\OCP\Settings\ISettings::class]);
+     //    $context->registerTaggedService(
+     //        \OCA\LinTO\Settings\LinTOAdmin::class,
+     //        'settings',
+     //        ['section' => 'linto', 'type' => 'admin']
+     //    );
+     // Util::addInitScript(Application::APP_ID, 'linto-fileactions');
+	}
+
+	public function boot(IBootContext $context): void {
+	    \OCP\Util::addScript('linto', 'settings');  // Charge js/settings.js
+	}
+}
