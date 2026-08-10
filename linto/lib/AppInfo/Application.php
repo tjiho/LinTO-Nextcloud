@@ -33,10 +33,10 @@ class Application extends App implements IBootstrap {
      //        'settings',
      //        ['section' => 'linto', 'type' => 'admin']
      //    );
-     // Util::addInitScript(Application::APP_ID, 'linto-fileactions');
+     $context->registerEventListener(LoadAdditionalScriptsEvent::class, function () {
+         Util::addInitScript(self::APP_ID, 'linto-fileActions');
+     });
 	}
 
-	public function boot(IBootContext $context): void {
-	    \OCP\Util::addScript('linto', 'settings');  // Charge js/settings.js
-	}
+	public function boot(IBootContext $context): void {}
 }

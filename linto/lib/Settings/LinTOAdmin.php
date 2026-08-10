@@ -5,6 +5,7 @@ use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IConfig;
 use OCP\IL10N;
 use OCP\Settings\ISettings;
+use OCP\Util;
 
 class LinTOAdmin implements ISettings {
     private IL10N $l;
@@ -22,6 +23,8 @@ class LinTOAdmin implements ISettings {
         $parameters = [
             'apiKey' => $this->config->getAppValue(Application::APP_ID, 'apiKey', ''),
         ];
+
+        Util::addScript(Application::APP_ID, 'linto-settings');
 
         return new TemplateResponse('linto', 'settings/admin', $parameters, '');
     }
