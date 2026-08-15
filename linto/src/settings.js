@@ -1,4 +1,4 @@
-console.log('loaded')
+console.log('settings script loaded')
 document.getElementById('linto-settings-form').addEventListener('submit', async (e) => {
   e.preventDefault();
 

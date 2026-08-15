@@ -9,6 +9,8 @@ use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
 use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\Util;
+use OCP\EventDispatcher\IEventDispatcher;
+use OCA\Files\Event\LoadAdditionalScriptsEvent;
 
 class Application extends App implements IBootstrap {
 	public const APP_ID = 'linto';
@@ -16,6 +18,12 @@ class Application extends App implements IBootstrap {
 	/** @psalm-suppress PossiblyUnusedMethod */
 	public function __construct() {
 		parent::__construct(self::APP_ID);
+
+		$container = $this->getContainer();
+        $eventDispatcher = $container->get(IEventDispatcher::class);
+        $eventDispatcher->addListener(LoadAdditionalScriptsEvent::class, function() {
+            Util::addInitScript(self::APP_ID, 'linto-fileActions');
+        });
 	}
 
 	public function register(IRegistrationContext $context): void {
@@ -33,9 +41,11 @@ class Application extends App implements IBootstrap {
      //        'settings',
      //        ['section' => 'linto', 'type' => 'admin']
      //    );
-     $context->registerEventListener(LoadAdditionalScriptsEvent::class, function () {
-         Util::addInitScript(self::APP_ID, 'linto-fileActions');
-     });
+     // $context->registerEventListener(LoadAdditionalScriptsEvent::class, function () {
+     //     Util::addInitScript(self::APP_ID, 'linto-fileActions');
+     // });
+     // Util::addScript(self::APP_ID, 'linto-fileActions');
+     //
 	}
 
 	public function boot(IBootContext $context): void {}

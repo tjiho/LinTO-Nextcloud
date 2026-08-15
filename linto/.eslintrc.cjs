@@ -4,6 +4,7 @@ module.exports = {
 	],
 	rules: {
 		'jsdoc/require-jsdoc': 'off',
-		'vue/first-attribute-linebreak': 'off',
+    'vue/first-attribute-linebreak': 'off',
+    "indent": ["error", 2],
 	},
 }
