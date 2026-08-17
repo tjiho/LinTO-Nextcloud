@@ -14,8 +14,10 @@
     "extends @nextcloud/browserslist-config"
   ],
   "dependencies": {
+    "@linto/transcript-ui": "file:../../linto-studio/studio-sdk/components/transcript-ui",
     "@nextcloud/files": "^4.0.0",
     "@nextcloud/vue": "^9.8.2",
+    "vite-plugin-node-polyfills": "^0.28.0",
     "vue": "^3.5.35"
   },
   "devDependencies": {
