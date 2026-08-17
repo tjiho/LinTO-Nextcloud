@@ -11,6 +11,26 @@
         <!-- Formulaire -->
         <form id="linto-settings-form">
             <div class="form-group">
+                <label for="linto-api-url">URL de l'API LinTO</label>
+                <input type="text"
+                    id="linto-api-url"
+                    name="apiUrl"
+                    class="input"
+                    placeholder="https://studio.linto.ai"
+                    value="<?php p($_['apiUrl']); ?>"
+                />
+            </div>
+            <div class="form-group">
+                <label for="linto-organisation-id">ID Organisation</label>
+                <input type="text"
+                    id="linto-organisation-id"
+                    name="organisationId"
+                    class="input"
+                    placeholder="ID de votre organisation LinTO"
+                    value="<?php p($_['organisationId']); ?>"
+                />
+            </div>
+            <div class="form-group">
                 <label for="linto-api-key">Clé API</label>
                 <input type="text"
                     id="linto-api-key"

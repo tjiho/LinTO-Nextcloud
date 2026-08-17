@@ -4,9 +4,13 @@ document.getElementById('linto-settings-form').addEventListener('submit', async 
 
   const url = OC.generateUrl('apps/linto/config')
   const apiKey = document.getElementById('linto-api-key').value;
+  const apiUrl = document.getElementById('linto-api-url').value;
+  const organisationId = document.getElementById('linto-organisation-id').value;
   const data = {
     values: {
-      apiKey
+      apiKey,
+      apiUrl,
+      organisationId
     }
   }
   const response = await fetch(url,

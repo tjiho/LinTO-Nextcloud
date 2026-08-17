@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace OCA\LinTO\Controller;
 
 use OCA\LinTO\AppInfo\Application;
+use OCA\LinTO\BackgroundJob\PollTranscriptionJob;
+use OCA\LinTO\Db\TranscribeJob;
+use OCA\LinTO\Db\TranscribeJobMapper;
 use OCP\AppFramework\Http\Attribute\FrontpageRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Controller;
+use OCP\BackgroundJob\IJobList;
 use OCP\IConfig;
+use OCP\IDBConnection;
 use OCP\IRequest;
 use OCP\IUserSession;
 use OCP\Files\IRootFolder;
@@ -17,10 +22,9 @@ use OCP\Files\File;
 use OCP\Http\Client\IClientService;
 use OCP\Http\Client\IClient;
 use OCP\AppFramework\Http;
+use Psr\Log\LoggerInterface;
 
 class TranscribeController extends Controller {
-
-	private const LINTO_API_BASE = 'https://studio.linto.ai/cm-api/api';
 
 	public function __construct(
 		string $appName,
@@ -29,21 +33,33 @@ class TranscribeController extends Controller {
 		private IUserSession $userSession,
 		private IRootFolder $rootFolder,
 		private IClientService $clientService,
+		private TranscribeJobMapper $transcribeJobMapper,
+		private IJobList $jobList,
+		private IDBConnection $db,
+		private LoggerInterface $logger,
 		private ?string $userId,
 	) {
 		parent::__construct($appName, $request);
 	}
 
+	private function getApiUrl(): string {
+		return rtrim($this->config->getAppValue(Application::APP_ID, 'apiUrl', 'https://studio.linto.ai/cm-api/api'), '/');
+	}
+
+	private function getOrganisationId(): string {
+		return $this->config->getAppValue(Application::APP_ID, 'organisationId', '');
+	}
+
 	/**
 	 * Fetch available services from Linto API
 	 */
-	private function fetchServices(string $token): array|DataResponse {
+	private function fetchServices(string $apiKey): array|DataResponse {
 		$client = $this->clientService->newClient();
 
 		try {
-			$response = $client->get(self::LINTO_API_BASE . '/services', [
+			$response = $client->get($this->getApiUrl() . '/services', [
 				'headers' => [
-					'Authorization' => 'Bearer ' . $token,
+					'Authorization' => 'Bearer ' . $apiKey,
 					'Content-Type' => 'application/json',
 				],
 			]);
@@ -122,7 +138,7 @@ class TranscribeController extends Controller {
 	/**
 	 * Create transcription job on Linto API
 	 */
-	private function createTranscription(int $fileId, string $token, array $services): DataResponse {
+	private function createTranscription(int $fileId, string $apiKey, array $services): DataResponse {
 		$userId = $this->userSession->getUser()->getUID();
 		$userFolder = $this->rootFolder->getUserFolder($userId);
 
@@ -142,9 +158,10 @@ class TranscribeController extends Controller {
 		$client = $this->clientService->newClient();
 
 		try {
-			$response = $client->post(self::LINTO_API_BASE . '/organizations/6785248086d6ffb5a431d0b2/conversations/create', [
+			$orgId = $this->getOrganisationId();
+			$response = $client->post($this->getApiUrl() . '/organizations/' . $orgId . '/conversations/create', [
 				'headers' => [
-					'Authorization' => 'Bearer ' . $token,
+					'Authorization' => 'Bearer ' . $apiKey,
 				],
 				'multipart' => [
 					['name' => 'name', 'contents' => 'Transcription from nextcloud'],
@@ -160,7 +177,25 @@ class TranscribeController extends Controller {
 				return new DataResponse(['error' => 'Transcription failed'], Http::STATUS_INTERNAL_SERVER_ERROR);
 			}
 
-			return new DataResponse(json_decode($response->getBody(), true));
+			$data = json_decode($response->getBody(), true);
+			$conversationId = $data['conversationId'] ?? null;
+			
+			if (empty($conversationId)) {
+				return new DataResponse(['error' => 'No conversationId received'], Http::STATUS_INTERNAL_SERVER_ERROR);
+			}
+
+			// Create and save job entity
+			$jobEntity = new TranscribeJob();
+			$jobEntity->setUserId($userId);
+			$jobEntity->setFileId($fileId);
+			$jobEntity->setConversationId($conversationId);
+			$jobEntity->setStatus('pending');
+			$jobEntity->setCreatedAt(new \DateTime());
+			$jobEntity->setUpdatedAt(new \DateTime());
+			
+			$newEntity = $this->transcribeJobMapper->insert($jobEntity);
+
+			return new DataResponse(['conversationId' => $conversationId, 'jobId' => $newEntity->getId()]);
 		} catch (\Exception $e) {
 			return new DataResponse(['error' => $e->getMessage()], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
@@ -169,19 +204,32 @@ class TranscribeController extends Controller {
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'POST', url: '/transcribe')]
 	public function transcribe(int $fileId): DataResponse {
-		// Get request token from app config
-		$token = $this->config->getAppValue(Application::APP_ID, 'apiKey');
-		if (empty($token)) {
-			return new DataResponse(['error' => 'Request token not configured'], Http::STATUS_BAD_REQUEST);
+		// Get API key from app config
+		$apiKey = $this->config->getAppValue(Application::APP_ID, 'apiKey');
+		if (empty($apiKey)) {
+			return new DataResponse(['error' => 'API key not configured'], Http::STATUS_BAD_REQUEST);
 		}
 
 		// Step 1: Fetch available services
-		$services = $this->fetchServices($token);
+		$services = $this->fetchServices($apiKey);
 		if ($services instanceof DataResponse) {
 			return $services;
 		}
 
 		// Step 2: Create transcription
-		return $this->createTranscription($fileId, $token, $services);
+		$createResponse = $this->createTranscription($fileId, $apiKey, $services);
+		if ($createResponse->getStatus() !== Http::STATUS_OK) {
+			return $createResponse;
+		}
+
+		$responseData = $createResponse->getData();
+		$jobId = $responseData['jobId'] ?? null;
+		
+		if ($jobId) {
+			// Launch polling job
+			$this->jobList->add(PollTranscriptionJob::class, ['jobId' => $jobId]);
+		}
+
+		return $createResponse;
 	}
 }

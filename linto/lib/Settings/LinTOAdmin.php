@@ -22,6 +22,8 @@ class LinTOAdmin implements ISettings {
     public function getForm() {
         $parameters = [
             'apiKey' => $this->config->getAppValue(Application::APP_ID, 'apiKey', ''),
+            'apiUrl' => $this->config->getAppValue(Application::APP_ID, 'apiUrl', 'https://studio.linto.ai'),
+            'organisationId' => $this->config->getAppValue(Application::APP_ID, 'organisationId', ''),
         ];
 
         Util::addScript(Application::APP_ID, 'linto-settings');
