@@ -9,6 +9,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\TemplateResponse;
+use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\Files\IRootFolder;
 use OCP\Files\NotFoundException;
 use OCP\IRequest;
@@ -63,10 +64,18 @@ class TranscriptController extends Controller {
 			'readOnly' => true,
 		]);
 
-		return new TemplateResponse(
+		$response = new TemplateResponse(
 			'linto',
 			'viewer',
 		);
+
+		// allow blob url to fetch the audio
+		$csp = new ContentSecurityPolicy();
+		$csp->addAllowedConnectDomain('blob:');
+		$csp->addAllowedMediaDomain('blob:');
+		$response->setContentSecurityPolicy($csp);
+
+		return $response;
 	}
 
 	/**

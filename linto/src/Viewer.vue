@@ -2,7 +2,7 @@
 import { loadState } from '@nextcloud/initial-state'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcContent from '@nextcloud/vue/components/NcContent'
-import { mapApiDocument, createAudioPlugin } from '@linto/transcript-ui'
+import { createAudioPlugin, mapApiDocument } from '@linto/transcript-ui/webcomponent'
 import { ref, onMounted } from 'vue'
 import { generateUrl } from '@nextcloud/router'
 const editor = ref()
@@ -14,22 +14,20 @@ onMounted(() => {
     const mode = 'view' // this.canWrite ? "edit" : "view"
     const transcript = JSON.parse(content.transcript)
     transcript.name = content.fileName
-    core.capabilities.value = { text: mode, speakers: mode }
-    core.setDocument(mapApiDocument(transcript))
 
     core.use(
       createAudioPlugin({
         resolveSrc: async (source) => {
           const response = await fetch(generateUrl(`apps/linto/api/audio/${content.fileId}`))
-          if (!response.ok) throw new Error("Audio unavailable")
+          if (!response.ok) throw new Error('Audio unavailable')
           const blob = await response.blob()
           return URL.createObjectURL(blob)
         }
       })
     )
-  }, 500);
-
-
+    core.capabilities.value = { text: mode, speakers: mode }
+    core.setDocument(mapApiDocument(transcript))
+  }, 500)
 })
 
 </script>

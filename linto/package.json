@@ -18,7 +18,8 @@
     "@nextcloud/files": "^4.0.0",
     "@nextcloud/vue": "^9.8.2",
     "vite-plugin-node-polyfills": "^0.28.0",
-    "vue": "^3.5.35"
+    "vue": "^3.5.35",
+    "wavesurfer.js": "^7.12.11"
   },
   "devDependencies": {
     "@nextcloud/browserslist-config": "^3.1.2",
