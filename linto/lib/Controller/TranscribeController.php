@@ -8,6 +8,7 @@ use OCA\LinTO\AppInfo\Application;
 use OCA\LinTO\BackgroundJob\PollTranscriptionJob;
 use OCA\LinTO\Db\TranscribeJob;
 use OCA\LinTO\Db\TranscribeJobMapper;
+use OCA\LinTO\Service\TranscriptionTagService;
 use OCP\AppFramework\Http\Attribute\FrontpageRoute;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
@@ -22,6 +23,7 @@ use OCP\Files\File;
 use OCP\Http\Client\IClientService;
 use OCP\Http\Client\IClient;
 use OCP\AppFramework\Http;
+use OCP\IL10N;
 use Psr\Log\LoggerInterface;
 
 class TranscribeController extends Controller {
@@ -34,9 +36,11 @@ class TranscribeController extends Controller {
 		private IRootFolder $rootFolder,
 		private IClientService $clientService,
 		private TranscribeJobMapper $transcribeJobMapper,
+		private TranscriptionTagService $tagService,
 		private IJobList $jobList,
 		private IDBConnection $db,
 		private LoggerInterface $logger,
+		private IL10N $l,
 		private ?string $userId,
 	) {
 		parent::__construct($appName, $request);
@@ -65,12 +69,12 @@ class TranscribeController extends Controller {
 			]);
 
 			if ($response->getStatusCode() !== 200) {
-				return new DataResponse(['error' => 'Failed to fetch services'], Http::STATUS_BAD_REQUEST);
+				return new DataResponse(['error' => $this->l->t('Failed to fetch services')], Http::STATUS_BAD_REQUEST);
 			}
 
 			$data = json_decode($response->getBody(), true);
 			if ($data === null) {
-				return new DataResponse(['error' => 'Invalid JSON response'], Http::STATUS_INTERNAL_SERVER_ERROR);
+				return new DataResponse(['error' => $this->l->t('Invalid JSON response')], Http::STATUS_INTERNAL_SERVER_ERROR);
 			}
 			return $data;
 		} catch (\Exception $e) {
@@ -144,12 +148,12 @@ class TranscribeController extends Controller {
 
 		$nodes = $userFolder->getById($fileId);
 		if (empty($nodes)) {
-			return new DataResponse(['error' => 'File not found'], Http::STATUS_NOT_FOUND);
+			return new DataResponse(['error' => $this->l->t('File not found')], Http::STATUS_NOT_FOUND);
 		}
 
 		$file = $nodes[0];
 		if (!$file instanceof File || !str_starts_with($file->getMimeType(), 'audio/')) {
-			return new DataResponse(['error' => 'Invalid file type'], Http::STATUS_BAD_REQUEST);
+			return new DataResponse(['error' => $this->l->t('Invalid file type')], Http::STATUS_BAD_REQUEST);
 		}
 
 		// Build config from first service
@@ -174,14 +178,14 @@ class TranscribeController extends Controller {
 			]);
 
 			if ($response->getStatusCode() !== 200 && $response->getStatusCode() !== 201) {
-				return new DataResponse(['error' => 'Transcription failed'], Http::STATUS_INTERNAL_SERVER_ERROR);
+				return new DataResponse(['error' => $this->l->t('Transcription failed')], Http::STATUS_INTERNAL_SERVER_ERROR);
 			}
 
 			$data = json_decode($response->getBody(), true);
 			$conversationId = $data['conversationId'] ?? null;
-			
+
 			if (empty($conversationId)) {
-				return new DataResponse(['error' => 'No conversationId received'], Http::STATUS_INTERNAL_SERVER_ERROR);
+				return new DataResponse(['error' => $this->l->t('No conversationId received')], Http::STATUS_INTERNAL_SERVER_ERROR);
 			}
 
 			// Create and save job entity
@@ -194,6 +198,7 @@ class TranscribeController extends Controller {
 			$jobEntity->setUpdatedAt(new \DateTime());
 			
 			$newEntity = $this->transcribeJobMapper->insert($jobEntity);
+			$this->tagService->markInProgress($fileId);
 
 			return new DataResponse(['conversationId' => $conversationId, 'jobId' => $newEntity->getId()]);
 		} catch (\Exception $e) {
@@ -204,10 +209,14 @@ class TranscribeController extends Controller {
 	#[NoAdminRequired]
 	#[FrontpageRoute(verb: 'POST', url: '/transcribe')]
 	public function transcribe(int $fileId): DataResponse {
+		if ($this->transcribeJobMapper->findActiveByFileId($fileId) !== null) {
+			return new DataResponse(['error' => $this->l->t('A transcription is already in progress for this file')], Http::STATUS_CONFLICT);
+		}
+
 		// Get API key from app config
 		$apiKey = $this->config->getAppValue(Application::APP_ID, 'apiKey');
 		if (empty($apiKey)) {
-			return new DataResponse(['error' => 'API key not configured'], Http::STATUS_BAD_REQUEST);
+			return new DataResponse(['error' => $this->l->t('API key not configured')], Http::STATUS_BAD_REQUEST);
 		}
 
 		// Step 1: Fetch available services

@@ -11,6 +11,7 @@ use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\Util;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCA\Files\Event\LoadAdditionalScriptsEvent;
+use OCA\LinTO\Notification\Notifier;
 use OCP\Files\IMimeTypeDetector;
 
 class Application extends App implements IBootstrap {
@@ -23,11 +24,14 @@ class Application extends App implements IBootstrap {
 		$container = $this->getContainer();
         $eventDispatcher = $container->get(IEventDispatcher::class);
         $eventDispatcher->addListener(LoadAdditionalScriptsEvent::class, function() {
+            Util::addTranslations(self::APP_ID, null, true);
             Util::addInitScript(self::APP_ID, 'linto-fileActions');
         });
 	}
 
 	public function register(IRegistrationContext $context): void {
+		$context->registerNotifierService(Notifier::class);
+
 	    // $context->registerClass(\OCA\LinTO\Sections\LinTOAdmin::class, [\OCP\Settings\IIconSection::class]);
      //    $context->registerTaggedService(
      //        \OCA\LinTO\Sections\LinTOAdmin::class,

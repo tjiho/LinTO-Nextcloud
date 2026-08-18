@@ -1,0 +1,26 @@
+{
+    "translations": {
+        "Failed to fetch services": "Échec de la récupération des services",
+        "Invalid JSON response": "Réponse JSON invalide",
+        "File not found": "Fichier introuvable",
+        "Invalid file type": "Type de fichier invalide",
+        "Transcription failed": "La transcription a échoué",
+        "No conversationId received": "Aucun identifiant de conversation reçu",
+        "A transcription is already in progress for this file": "Une transcription est déjà en cours pour ce fichier",
+        "API key not configured": "Clé API non configurée",
+        "Transcription complete": "Transcription terminée",
+        "Your file has been transcribed successfully": "Votre fichier a été transcrit avec succès",
+        "The transcription of your file failed": "La transcription de votre fichier a échoué",
+        "Transcribe with LinTO": "Transcrire avec LinTO",
+        "Open with LinTO": "Ouvrir avec LinTO",
+        "Failed to start transcription": "Échec du lancement de la transcription",
+        "Configure the transcription settings.": "Configurez les paramètres de transcription.",
+        "LinTO API URL": "URL de l'API LinTO",
+        "Organisation ID": "ID Organisation",
+        "Your LinTO organisation ID": "ID de votre organisation LinTO",
+        "API Key": "Clé API",
+        "Your LinTO API key": "Votre clé API LinTO",
+        "Save": "Sauvegarder"
+    },
+    "pluralForm": "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;"
+}

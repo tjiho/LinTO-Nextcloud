@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace OCA\LinTO\BackgroundJob;
 
 use OCA\LinTO\AppInfo\Application;
+use OCA\LinTO\Db\TranscribeJob;
 use OCA\LinTO\Db\TranscribeJobMapper;
+use OCA\LinTO\Service\TranscriptionTagService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJobList;
 use OCP\BackgroundJob\Job;
@@ -18,6 +20,13 @@ use Psr\Log\LoggerInterface;
 use ZipArchive;
 
 class PollTranscriptionJob extends Job {
+	/**
+	 * A job that never reaches 'done' or 'error' within this many seconds
+	 * (network blips, LinTO API stuck, etc.) is given up on rather than
+	 * retried forever.
+	 */
+	private const MAX_JOB_AGE_SECONDS = 86400; // 24h
+
 	public function __construct(
 		ITimeFactory $time,
 		private IClientService $clientService,
@@ -28,6 +37,7 @@ class PollTranscriptionJob extends Job {
 		private IRootFolder $rootFolder,
 		private IURLGenerator $urlGenerator,
 		private IJobList $jobList,
+		private TranscriptionTagService $tagService,
 	) {
 		parent::__construct($time);
 	}
@@ -39,6 +49,41 @@ class PollTranscriptionJob extends Job {
 	private function isTranscriptionDone(array $data): bool {
 		$job = ($data['jobs'] ?? [])['transcription'] ?? null;
 		return ($job['state'] ?? null) === 'done';
+	}
+
+	/**
+	 * Response structure: {"jobs": {"transcription": {"state": "error"}}}
+	 */
+	private function isTranscriptionFailed(array $data): bool {
+		$job = ($data['jobs'] ?? [])['transcription'] ?? null;
+		return ($job['state'] ?? null) === 'error';
+	}
+
+	/**
+	 * Give up on a job for good: stop retrying it, reflect the terminal
+	 * status, clear the "in progress" indicator and flag the file as failed,
+	 * and let the user know.
+	 */
+	private function markJobFailed(TranscribeJob $entity, array $argument, string $status): void {
+		$entity->setStatus($status);
+		$entity->setUpdatedAt(new \DateTime());
+		$this->mapper->update($entity);
+
+		$this->jobList->remove($this, $argument);
+		$this->tagService->clearInProgress($entity->getFileId());
+		$this->tagService->markFailed($entity->getFileId());
+
+		$notification = $this->notificationManager->createNotification();
+		$notification->setApp(Application::APP_ID)
+			->setUser($entity->getUserId())
+			->setDateTime(new \DateTime())
+			->setObject('transcription', (string)$entity->getId())
+			->setSubject('transcription_failed')
+			->setLink($this->urlGenerator->linkToRouteAbsolute('linto.page.index'));
+
+		$this->notificationManager->notify($notification);
+
+		$this->logger->warning('PollTranscriptionJob: job ' . $entity->getId() . ' marked as ' . $status);
 	}
 
 	protected function run($argument): void {
@@ -55,6 +100,13 @@ class PollTranscriptionJob extends Job {
 			if ($entity === null) {
 				$this->logger->error('PollTranscriptionJob: job not found for id ' . $jobId);
 				$this->jobList->remove($this, $argument);
+				return;
+			}
+
+			$maxAge = (new \DateTime())->modify('-' . self::MAX_JOB_AGE_SECONDS . ' seconds');
+			if ($entity->getStatus() !== 'done' && $entity->getCreatedAt() < $maxAge) {
+				$this->logger->warning('PollTranscriptionJob: job ' . $jobId . ' timed out after ' . self::MAX_JOB_AGE_SECONDS . 's');
+				$this->markJobFailed($entity, $argument, 'timeout');
 				return;
 			}
 
@@ -107,6 +159,12 @@ class PollTranscriptionJob extends Job {
 
 			$this->mapper->update($entity);
 
+			if ($this->isTranscriptionFailed($data)) {
+				$this->logger->warning('PollTranscriptionJob: transcription failed for job ' . $jobId);
+				$this->markJobFailed($entity, $argument, 'error');
+				return;
+			}
+
 			if (!$this->isTranscriptionDone($data)) {
 				// Transcription pas encore terminée : on laisse le job en liste,
 				// il sera rejoué au prochain passage du cron système.
@@ -119,6 +177,7 @@ class PollTranscriptionJob extends Job {
 			// Terminé : on retire le job de la liste dès maintenant pour éviter
 			// tout risque de repasser dessus si le reste du traitement échoue puis est retenté.
 			$this->jobList->remove($this, $argument);
+			$this->tagService->clearInProgress($entity->getFileId());
 
 			// 1. Send notification
 			$notification = $this->notificationManager->createNotification();
@@ -126,9 +185,7 @@ class PollTranscriptionJob extends Job {
 				->setUser($entity->getUserId())
 				->setDateTime(new \DateTime())
 				->setObject('transcription', (string)$entity->getId())
-				->setSubject('transcription_done', [
-					'message' => 'Votre fichier a été transcrit avec succès',
-				])
+				->setSubject('transcription_done')
 				->setLink($this->urlGenerator->linkToRouteAbsolute('linto.page.index'));
 
 			$this->notificationManager->notify($notification);

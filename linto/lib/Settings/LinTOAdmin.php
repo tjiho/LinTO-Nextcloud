@@ -26,6 +26,7 @@ class LinTOAdmin implements ISettings {
             'organisationId' => $this->config->getAppValue(Application::APP_ID, 'organisationId', ''),
         ];
 
+        Util::addTranslations(Application::APP_ID);
         Util::addScript(Application::APP_ID, 'linto-settings');
 
         return new TemplateResponse('linto', 'settings/admin', $parameters, '');

@@ -1,6 +1,7 @@
 // src/actions/openModalAction.js
 
 import { registerFileAction, DefaultType } from '@nextcloud/files'
+import { translate as t } from '@nextcloud/l10n'
 
 const TRANSCRIPT_MIMETYPE = 'application/vnd.linto.transcript+zip'
 
@@ -9,7 +10,7 @@ const lintoSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" 
 function addAction() {
   const action = {
     id: 'linto-transcribe',
-    displayName: () => 'Transcrire avec LinTO',
+    displayName: () => t('linto', 'Transcribe with LinTO'),
     iconSvgInline() {
       return lintoSvg
     },
@@ -31,7 +32,7 @@ function addAction() {
 
   const viewAction = {
     id: 'linto-view',
-    displayName: () => 'Ouvrir avec LinTO',
+    displayName: () => t('linto', 'Open with LinTO'),
     iconSvgInline() {
       return lintoSvg
     },
@@ -71,6 +72,16 @@ async function transcribe(node) {
       }
     }
   )
+
+  if (response.status === 409) {
+    OC.Notification.showTemporary(t('linto', 'A transcription is already in progress for this file'), { type: 'error' })
+    return
+  }
+
+  if (!response.ok) {
+    OC.Notification.showTemporary(t('linto', 'Failed to start transcription'), { type: 'error' })
+    return
+  }
 
   console.debug(response)
 }
