@@ -15,6 +15,7 @@ use OCP\IConfig;
 use OCP\IURLGenerator;
 use OCP\Notification\IManager;
 use Psr\Log\LoggerInterface;
+use ZipArchive;
 
 class PollTranscriptionJob extends Job {
 	public function __construct(
@@ -132,29 +133,77 @@ class PollTranscriptionJob extends Job {
 
 			$this->notificationManager->notify($notification);
 
-			// 2. Save full JSON to .transcript file
+			// 2. Get source file info first (for metadata)
 			$userId = $entity->getUserId();
+			$fileName = 'transcript';
 			if (!empty($userId)) {
 				$userFolder = $this->rootFolder->getUserFolder($userId);
 				$nodes = $userFolder->getById($entity->getFileId());
-
 				if (!empty($nodes)) {
-					$file = $nodes[0];
-					$transcriptContent = json_encode($data, JSON_PRETTY_PRINT);
-
-					$relativeParentPath = $userFolder->getRelativePath($file->getParent()->getPath());
-					$transcriptPath = rtrim($relativeParentPath, '/') . '/' . $file->getName() . '.transcript';
-
-					if ($userFolder->nodeExists($transcriptPath)) {
-						$transcriptFile = $userFolder->get($transcriptPath);
-					} else {
-						$transcriptFile = $userFolder->newFile($transcriptPath);
-					}
-
-					$transcriptFile->putContent($transcriptContent);
-				} else {
-					$this->logger->warning('PollTranscriptionJob: file not found for id ' . $entity->getFileId());
+					$fileName = $nodes[0]->getName();
 				}
+			}
+
+			// 3. Download audio from Linto Studio API
+			$audioUrl = $url . '/media';
+			$audioContent = '';
+			try {
+				$audioResponse = $client->get($audioUrl, [
+					'headers' => [
+						'Authorization' => 'Bearer ' . $apiKey,
+					],
+				]);
+				if ($audioResponse->getStatusCode() === 200) {
+					$audioBody = $audioResponse->getBody();
+					$audioContent = is_resource($audioBody) ? stream_get_contents($audioBody) : $audioBody;
+				} else {
+					$this->logger->warning('PollTranscriptionJob: Failed to download audio for job ' . $jobId . ', status: ' . $audioResponse->getStatusCode());
+				}
+			} catch (\Throwable $e) {
+				$this->logger->warning('PollTranscriptionJob: Audio download failed for job ' . $jobId . ': ' . $e->getMessage());
+			}
+
+			// 4. Create ZIP with transcript + audio (if available)
+			$zip = new ZipArchive();
+			$tmpZipPath = tempnam(sys_get_temp_dir(), 'linto_zip_');
+
+			if ($zip->open($tmpZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+				$this->logger->error('PollTranscriptionJob: Failed to create ZIP for job ' . $jobId);
+				return;
+			}
+
+			$zip->addFromString('transcript.json', json_encode($data, JSON_PRETTY_PRINT));
+			
+			if (!empty($audioContent)) {
+				$zip->addFromString('audio.mp3', $audioContent);
+			}
+
+			$metadata = [
+				'fileName' => $fileName,
+				'createdAt' => (new \DateTime())->format(\DateTimeInterface::ATOM),
+				'source' => 'linto-studio',
+				'hasAudio' => !empty($audioContent),
+			];
+			$zip->addFromString('metadata.json', json_encode($metadata));
+
+			$zip->close();
+
+			// 5. Save ZIP as .transcript file
+			if (!empty($userId) && !empty($nodes)) {
+				$file = $nodes[0];
+				$relativeParentPath = $userFolder->getRelativePath($file->getParent()->getPath());
+				$transcriptPath = rtrim($relativeParentPath, '/') . '/' . $file->getName() . '.transcript';
+
+				if ($userFolder->nodeExists($transcriptPath)) {
+					$transcriptFile = $userFolder->get($transcriptPath);
+				} else {
+					$transcriptFile = $userFolder->newFile($transcriptPath);
+				}
+
+				$transcriptFile->putContent(file_get_contents($tmpZipPath));
+				unlink($tmpZipPath);
+			} else {
+				unlink($tmpZipPath);
 			}
 		} catch (\Throwable $e) {
 			$this->logger->error('PollTranscriptionJob: ' . $e->getMessage(), ['exception' => $e]);
