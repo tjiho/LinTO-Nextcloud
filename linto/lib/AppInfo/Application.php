@@ -11,6 +11,7 @@ use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\Util;
 use OCP\EventDispatcher\IEventDispatcher;
 use OCA\Files\Event\LoadAdditionalScriptsEvent;
+use OCP\Files\IMimeTypeDetector;
 
 class Application extends App implements IBootstrap {
 	public const APP_ID = 'linto';
@@ -48,5 +49,8 @@ class Application extends App implements IBootstrap {
      //
 	}
 
-	public function boot(IBootContext $context): void {}
+	public function boot(IBootContext $context): void {
+		$mimeTypeDetector = $context->getServerContainer()->get(IMimeTypeDetector::class);
+		$mimeTypeDetector->registerType('transcript', 'application/vnd.linto.transcript+zip');
+	}
 }

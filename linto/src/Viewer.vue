@@ -17,7 +17,7 @@ onMounted(() => {
 
     core.use(
       createAudioPlugin({
-        resolveSrc: async (source) => {
+        resolveSrc: async () => {
           const response = await fetch(generateUrl(`apps/linto/api/audio/${content.fileId}`))
           if (!response.ok) throw new Error('Audio unavailable')
           const blob = await response.blob()
