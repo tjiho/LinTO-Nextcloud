@@ -20,7 +20,10 @@
         "Your LinTO organisation ID": "ID de votre organisation LinTO",
         "API Key": "Clé API",
         "Your LinTO API key": "Votre clé API LinTO",
-        "Save": "Sauvegarder"
+        "Save": "Sauvegarder",
+        "Settings saved": "Paramètres enregistrés",
+        "Failed to save settings": "Échec de l'enregistrement des paramètres",
+        "Delete the transcription from LinTO Studio once finished, keep only the local copy": "Supprimer la transcription de LinTO Studio lorsque celle-ci est terminée, et ne garder que la version en local"
     },
     "pluralForm": "nplurals=3; plural=(n == 0 || n == 1) ? 0 : n != 0 && n % 1000000 == 0 ? 1 : 2;"
 }

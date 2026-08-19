@@ -259,6 +259,22 @@ class PollTranscriptionJob extends Job {
 
 				$transcriptFile->putContent(file_get_contents($tmpZipPath));
 				unlink($tmpZipPath);
+
+				// 6. Optionally delete the conversation on LinTO Studio now
+				// that a local copy exists — only once the local save above
+				// actually succeeded, never before.
+				$deleteRemote = $this->config->getAppValue(Application::APP_ID, 'deleteRemoteAfterTranscription', '1') === '1';
+				if ($deleteRemote) {
+					try {
+						$client->delete($url, [
+							'headers' => [
+								'Authorization' => 'Bearer ' . $apiKey,
+							],
+						]);
+					} catch (\Throwable $e) {
+						$this->logger->warning('PollTranscriptionJob: failed to delete remote conversation for job ' . $jobId . ': ' . $e->getMessage());
+					}
+				}
 			} else {
 				unlink($tmpZipPath);
 			}
