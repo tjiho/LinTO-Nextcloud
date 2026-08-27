@@ -2,32 +2,53 @@
 import { loadState } from '@nextcloud/initial-state'
 import NcAppContent from '@nextcloud/vue/components/NcAppContent'
 import NcContent from '@nextcloud/vue/components/NcContent'
-import { createAudioPlugin, mapApiDocument } from '@linto/transcript-ui/webcomponent'
-import { ref, onMounted } from 'vue'
 import { generateUrl } from '@nextcloud/router'
-const editor = ref()
+
+import { ref, onMounted, useTemplateRef } from 'vue'
+
+
+import {
+  TranscriptUI,
+  mapApiDocument,
+  mapWhisperXDocument,
+  createCore,
+  provideCore,
+  type Core,
+} from "@linto-ai/transcript-ui-core"
+import { provideI18n, type Locale } from "@linto-ai/transcript-ui-i18n"
+import { createAudioPlugin } from "@linto-ai/transcript-ui-plugin-audio"
+
+
+const loading = ref(true)
+const editorRef = useTemplateRef<InstanceType<typeof TranscriptUI>>("editor")
+let core!: Core
+
+
+
+
 
 onMounted(() => {
-  setTimeout(() => {
-    const content = loadState('linto', 'content')
-    const core = editor.value.core
-    const mode = 'view' // this.canWrite ? "edit" : "view"
-    const transcript = JSON.parse(content.transcript)
-    transcript.name = content.fileName
+  core = editorRef.value!.core
+  const content:any = loadState('linto', 'content')
+  const mode = 'view' // this.canWrite ? "edit" : "view"
 
-    core.use(
-      createAudioPlugin({
-        resolveSrc: async () => {
-          const response = await fetch(generateUrl(`apps/linto/api/audio/${content.fileId}`))
-          if (!response.ok) throw new Error('Audio unavailable')
-          const blob = await response.blob()
-          return URL.createObjectURL(blob)
-        }
-      })
-    )
-    core.capabilities.value = { text: mode, speakers: mode }
-    core.setDocument(mapApiDocument(transcript))
-  }, 500)
+
+  core.use(
+    createAudioPlugin({
+      resolveSrc: async () => {
+        const response = await fetch(generateUrl(`apps/linto/api/audio/${content.fileId}`))
+        if (!response.ok) throw new Error('Audio unavailable')
+        const blob = await response.blob()
+        return URL.createObjectURL(blob)
+      }
+    })
+  )
+  core.capabilities.value = { text: mode, speakers: mode }
+
+  const transcript = JSON.parse(content.transcript)
+  transcript.name = content.fileName
+  core.setDocument(mapApiDocument(transcript))
+  loading.value = false
 })
 
 </script>
@@ -35,7 +56,7 @@ onMounted(() => {
 <template>
 	<NcContent app-name="linto">
 		<NcAppContent :class="$style.content">
-		    <linto-editor ref="editor" locale="FR-fr" :class="$style.editor"/>
+		   <TranscriptUI ref="editor" locale="fr" :class="$style.editor"/>
 		</NcAppContent>
 	</NcContent>
 </template>

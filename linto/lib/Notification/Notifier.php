@@ -38,17 +38,22 @@ class Notifier implements INotifier {
 		}
 
 		$l = $this->l10nFactory->get(Application::APP_ID, $languageCode);
+		// setIcon() requires an absolute URL (http:// or https://) — imagePath()
+		// alone only returns a relative one, which INotification rejects.
+		$icon = $this->urlGenerator->getAbsoluteURL(
+			$this->urlGenerator->imagePath(Application::APP_ID, 'app.svg'),
+		);
 
 		switch ($notification->getSubject()) {
 			case 'transcription_done':
 				$notification->setParsedSubject($l->t('Transcription complete'))
 					->setParsedMessage($l->t('Your file has been transcribed successfully'))
-					->setIcon($this->urlGenerator->imagePath(Application::APP_ID, 'app.svg'));
+					->setIcon($icon);
 				break;
 			case 'transcription_failed':
 				$notification->setParsedSubject($l->t('Transcription failed'))
 					->setParsedMessage($l->t('The transcription of your file failed'))
-					->setIcon($this->urlGenerator->imagePath(Application::APP_ID, 'app.svg'));
+					->setIcon($icon);
 				break;
 			default:
 				throw new UnknownNotificationException();
