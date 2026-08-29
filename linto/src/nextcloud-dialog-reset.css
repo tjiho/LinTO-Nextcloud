@@ -1,0 +1,11 @@
+/* Nextcloud's core CSS sets `dialog { display: block; }` unconditionally (no
+   `:not([open])` guard), which breaks every native <dialog> in transcript-ui
+   (e.g. MergeDialog): closed ones stay laid out and visible, since
+   showModal()/close() only toggle the `open` attribute — display is what the
+   UA stylesheet's dialog:not([open]) rule is supposed to handle.
+   #linto-viewer gives this ID-level specificity, which beats Nextcloud's
+   class-based selectors outright — no !important needed. */
+
+#linto-viewer dialog:not([open]) {
+  display: none;
+}

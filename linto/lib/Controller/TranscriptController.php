@@ -7,6 +7,7 @@ namespace OCA\LinTO\Controller;
 use OCA\LinTO\AppInfo\Application;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\JSONResponse;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
@@ -61,7 +62,7 @@ class TranscriptController extends Controller {
 			'fileId' => $fileId,
 			'transcript' => $transcriptContent,
 			'fileName' => $node->getName(),
-			'readOnly' => true,
+			'readOnly' => !$node->isUpdateable(),
 		]);
 
 		$response = new TemplateResponse(
@@ -146,5 +147,70 @@ class TranscriptController extends Controller {
 		// Not a ZIP
 		unlink($tmpPath);
 		return null;
+	}
+
+	/**
+	 * Persist an edited transcript: the client computes the edit (retiming,
+	 * split/merge, speaker changes — see src/retiming/ and src/editing/) and
+	 * sends back the whole updated document; this just swaps transcript.json
+	 * inside the existing ZIP, keeping audio.mp3/metadata.json untouched.
+	 * No locking: single editor, last write wins.
+	 */
+	#[NoAdminRequired]
+	#[FrontpageRoute(verb: 'PUT', url: '/api/transcript/{fileId}')]
+	public function saveTranscript(int $fileId, array $document): DataResponse {
+		$nodes = $this->rootFolder->getUserFolder($this->userId)->getById($fileId);
+		$node = $nodes[0] ?? null;
+
+		if (!$node instanceof File) {
+			return new DataResponse(['error' => 'not_found'], Http::STATUS_NOT_FOUND);
+		}
+		if (!$node->isUpdateable()) {
+			return new DataResponse(['error' => 'forbidden'], Http::STATUS_FORBIDDEN);
+		}
+
+		$json = json_encode($document, JSON_PRETTY_PRINT);
+		if ($json === false) {
+			return new DataResponse(['error' => 'invalid_document'], Http::STATUS_BAD_REQUEST);
+		}
+
+		try {
+			$newContent = $this->replaceTranscriptInZip($node->getContent(), $json);
+		} catch (\Throwable $e) {
+			$this->logger->error('saveTranscript: failed to rewrite ZIP for file ' . $fileId, ['exception' => $e]);
+			return new DataResponse(['error' => 'zip_error'], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+
+		$node->putContent($newContent);
+
+		return new DataResponse(['ok' => true]);
+	}
+
+	/**
+	 * Rewrite transcript.json inside an existing ZIP, leaving every other
+	 * entry (audio.mp3, metadata.json...) untouched.
+	 */
+	private function replaceTranscriptInZip(string $zipContent, string $transcriptJson): string {
+		$zip = new ZipArchive();
+		$tmpPath = tempnam(sys_get_temp_dir(), 'linto_save_');
+		file_put_contents($tmpPath, $zipContent);
+
+		if ($zip->open($tmpPath) !== true) {
+			unlink($tmpPath);
+			throw new \RuntimeException('could not open zip');
+		}
+
+		// addFromString on an existing entry name replaces it in place.
+		$zip->addFromString('transcript.json', $transcriptJson);
+		$zip->close();
+
+		$newContent = file_get_contents($tmpPath);
+		unlink($tmpPath);
+
+		if ($newContent === false) {
+			throw new \RuntimeException('could not read back zip');
+		}
+
+		return $newContent;
 	}
 }

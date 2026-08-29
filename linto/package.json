@@ -14,12 +14,14 @@
     "extends @nextcloud/browserslist-config"
   ],
   "dependencies": {
-    "@linto-ai/transcript-ui": "^0.9.1",
-    "@linto-ai/transcript-ui-plugin-audio": "^0.9.1",
+    "@linto-ai/transcript-ui": "^0.9.8",
+    "@linto-ai/transcript-ui-plugin-audio": "^0.9.8",
+    "@linto-ai/transcript-ui-plugin-transcription-editor": "^0.9.8",
     "@nextcloud/files": "^4.0.0",
     "@nextcloud/initial-state": "^3.0.0",
     "@nextcloud/l10n": "^3.4.1",
     "@nextcloud/vue": "^9.8.2",
+    "syllable": "^5.0.1",
     "vite-plugin-node-polyfills": "^0.28.0",
     "vue": "^3.5.35",
     "wavesurfer.js": "^7.12.11"
