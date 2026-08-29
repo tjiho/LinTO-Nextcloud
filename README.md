@@ -12,11 +12,11 @@ Right-click any audio file in Nextcloud Files and select **Transcribe with LinTO
 
 ### A transcription editor, powered by LinTO Studio
 
-Opening a `.transcript` file gives you the same editor that powers [LinTO Studio](https://studio.linto.app): edit text, split and merge speech turns, rename or merge speakers — all synced with the audio waveform.
+Opening a `.transcript` file gives you the same editor that powers [LinTO Studio](https://studio.linto.ai): edit text, split and merge speech turns, rename or merge speakers — all synced with the audio waveform.
 
 ![The transcription editor](screenshots/editor.png)
 
-This is the same core component as LinTO Studio, not a stripped-down clone — but it isn't the full product either: report generation and DOCX export aren't part of this integration. For those, and for live transcription, see [studio.linto.app](https://studio.linto.app).
+This is the same core component as LinTO Studio, not a stripped-down clone — but it isn't the full product either: report generation and DOCX export aren't part of this integration. For those, and for live transcription, see [studio.linto.ai](https://studio.linto.ai).
 
 ## Privacy
 
