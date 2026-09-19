@@ -7,7 +7,7 @@
 	<description>Integrate LinTO into nextcloud</description>
 	<version>1.0.0</version>
 	<licence>AGPL-3.0-or-later</licence>
-	<author mail="tjiho@ppsfleet.navy" homepage="">Tom Darboux</author>
+	<author mail="tjiho@ppsfleet.navy" homepage="https://github.com/tjiho">Tom Darboux</author>
 	<namespace>LinTO</namespace>
 	<category>ai</category>
 	<category>tools</category>
