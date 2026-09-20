@@ -1,6 +1,7 @@
 <?php
 namespace OCA\LinTO\Sections;
 
+use OCA\LinTO\AppInfo\Application;
 use OCP\IL10N;
 use OCP\IURLGenerator;
 use OCP\Settings\IIconSection;
@@ -15,7 +16,9 @@ class LinTOAdmin implements IIconSection {
     }
 
     public function getIcon(): string {
-        return $this->urlGenerator->imagePath('core', 'actions/settings-dark.svg');
+        // The settings sidebar sits on a light background, so it wants the dark
+        // variant of the app icon.
+        return $this->urlGenerator->imagePath(Application::APP_ID, 'app-dark.svg');
     }
 
     public function getID(): string {
